@@ -8,11 +8,11 @@
 
 @layer base {
   :root {
-    /* Dark theme as default */
-    --background: 0 0% 7%;
+    /* Dark theme as default - Cyber-Executive #0A0A0A */
+    --background: 0 0% 4%;
     --foreground: 0 0% 100%;
 
-    --card: 0 0% 10%;
+    --card: 0 0% 7%;
     --card-foreground: 0 0% 100%;
 
     --popover: 0 0% 10%;
