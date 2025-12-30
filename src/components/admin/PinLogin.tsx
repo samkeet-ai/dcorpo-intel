@@ -47,7 +47,7 @@ export function PinLogin() {
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Hint: Default PIN is 1234
+          Hint: Default PIN is 2025
         </p>
       </div>
     </div>

@@ -61,6 +61,28 @@ export function useDraftBriefs() {
   });
 }
 
+export function useScheduledBriefs() {
+  return useQuery({
+    queryKey: ["scheduled-briefs"],
+    queryFn: async (): Promise<AdminBrief[]> => {
+      const { data, error } = await supabase
+        .from("weekly_briefs")
+        .select("*")
+        .gt("publish_date", new Date().toISOString())
+        .order("publish_date", { ascending: true });
+
+      if (error) throw error;
+      
+      return (data || []).map((brief) => ({
+        ...brief,
+        radar_points: typeof brief.radar_points === 'string' 
+          ? JSON.parse(brief.radar_points) 
+          : (brief.radar_points as string[]) || []
+      }));
+    },
+  });
+}
+
 export function useUpdateBrief() {
   const queryClient = useQueryClient();
 
@@ -68,7 +90,6 @@ export function useUpdateBrief() {
     mutationFn: async (brief: Partial<AdminBrief> & { id: string }) => {
       const { id, ...updateData } = brief;
       
-      // Convert radar_points array to JSON for storage
       const dataToUpdate = {
         ...updateData,
         radar_points: updateData.radar_points 
@@ -87,6 +108,7 @@ export function useUpdateBrief() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-brief"] });
       toast.success("Brief updated successfully!");
     },
@@ -101,7 +123,7 @@ export function usePublishBrief() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // First, set all other briefs to draft
+      // First, set all other active briefs to draft
       await supabase
         .from("weekly_briefs")
         .update({ status: "draft" })
@@ -122,6 +144,7 @@ export function usePublishBrief() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-brief"] });
       toast.success("Brief published!");
     },

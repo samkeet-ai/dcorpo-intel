@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      subscribers: {
+        Row: {
+          email: string
+          id: string
+          joined_at: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          joined_at?: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          joined_at?: string
+        }
+        Relationships: []
+      }
       weekly_briefs: {
         Row: {
           audio_summary_url: string | null
