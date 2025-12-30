@@ -24,6 +24,7 @@ export type Database = {
           id: string
           jargon_def: string | null
           jargon_term: string | null
+          linkedin_caption: string | null
           publish_date: string
           radar_points: Json | null
           status: string
@@ -39,6 +40,7 @@ export type Database = {
           id?: string
           jargon_def?: string | null
           jargon_term?: string | null
+          linkedin_caption?: string | null
           publish_date?: string
           radar_points?: Json | null
           status?: string
@@ -54,6 +56,7 @@ export type Database = {
           id?: string
           jargon_def?: string | null
           jargon_term?: string | null
+          linkedin_caption?: string | null
           publish_date?: string
           radar_points?: Json | null
           status?: string
