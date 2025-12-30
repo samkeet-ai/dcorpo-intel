@@ -7,6 +7,8 @@ import { useDraftBriefs, useAdminBriefs, useScheduledBriefs, AdminBrief } from "
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 function AdminDashboard() {
   const { logout } = useAdminAuth();
@@ -15,20 +17,35 @@ function AdminDashboard() {
   const { data: drafts, isLoading: draftsLoading } = useDraftBriefs();
   const { data: scheduled, isLoading: scheduledLoading } = useScheduledBriefs();
   const { data: allBriefs } = useAdminBriefs();
+  const queryClient = useQueryClient();
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
-    toast.info("Connecting to AI Brain...", {
-      description: "This feature will generate content using AI.",
+    toast.info("AI is researching latest laws...", {
+      description: "This may take up to 30 seconds.",
     });
     
-    // Simulate loading for demo
-    setTimeout(() => {
-      setIsGenerating(false);
-      toast.success("AI generation ready!", {
-        description: "Connect to the edge function for full functionality.",
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-brief");
+      
+      if (error) throw error;
+      
+      toast.success("New brief generated!", {
+        description: "Check your drafts to review and edit.",
       });
-    }, 2000);
+      
+      // Refresh the briefs lists
+      queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-briefs"] });
+    } catch (error: any) {
+      console.error("Generation error:", error);
+      toast.error("Failed to generate brief", {
+        description: error.message || "Please try again later.",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   if (selectedBrief) {
