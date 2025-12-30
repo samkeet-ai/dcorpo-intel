@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, Lightbulb, Globe, HelpCircle } from "lucide-react";
 import { WeeklyBrief } from "@/hooks/useWeeklyBrief";
 import confetti from "canvas-confetti";
-import { RiskEstimator } from "@/components/RiskEstimator";
-import { GlobalHeatmap } from "@/components/GlobalHeatmap";
+import { DPDPAReadinessCard } from "@/components/DPDPAReadinessCard";
 
 interface BentoGridProps {
   brief: WeeklyBrief | null;
@@ -208,11 +207,8 @@ export function BentoGrid({ brief, isLoading }: BentoGridProps) {
             <JargonTile term={brief.jargon_term} definition={brief.jargon_def} />
           )}
 
-          {/* Risk Estimator */}
-          <RiskEstimator />
-
-          {/* Global Heatmap */}
-          <GlobalHeatmap />
+          {/* DPDPA Readiness Card */}
+          <DPDPAReadinessCard />
         </div>
       </div>
     </section>
