@@ -9,7 +9,7 @@ interface AdminAuthContextType {
 const AdminAuthContext = createContext<AdminAuthContextType | null>(null);
 
 // Simple PIN for admin access (in production, use a more secure method)
-const ADMIN_PIN = "1234";
+const ADMIN_PIN = "2025";
 
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
