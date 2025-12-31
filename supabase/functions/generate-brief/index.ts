@@ -12,14 +12,38 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Verify JWT token from Authorization header
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.error("Missing or invalid Authorization header");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log("Authenticated user:", user.email);
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log("Generating new brief with AI...");
 
@@ -89,12 +113,10 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
       throw new Error("No content in AI response");
     }
 
-    console.log("AI Response:", content);
+    console.log("AI Response received");
 
-    // Parse the JSON response
     let briefData;
     try {
-      // Remove any markdown code blocks if present
       const cleanedContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       briefData = JSON.parse(cleanedContent);
     } catch (parseError) {
@@ -102,18 +124,19 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
       throw new Error("Failed to parse AI response as JSON");
     }
 
-    // Validate required fields
     if (!briefData.title || !briefData.deep_dive_text) {
       throw new Error("AI response missing required fields");
     }
 
-    // Use a fallback image if the AI doesn't provide a valid one
     const coverImage = briefData.cover_image?.includes("unsplash.com") 
       ? briefData.cover_image 
       : "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1200&h=600&fit=crop";
 
-    // Insert into database
-    const { data, error } = await supabase.from("weekly_briefs").insert({
+    // Use service role key for database insert
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    const { data, error } = await adminClient.from("weekly_briefs").insert({
       title: briefData.title,
       deep_dive_text: briefData.deep_dive_text,
       fun_fact: briefData.fun_fact || null,
