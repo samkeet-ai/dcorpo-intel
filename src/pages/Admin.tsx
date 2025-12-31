@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { LogOut, Sparkles, FileText, Clock, CheckCircle, Calendar, Settings, RefreshCw, Newspaper } from "lucide-react";
+import { LogOut, Sparkles, FileText, Clock, CheckCircle, Calendar, RefreshCw, Newspaper, Users, Plus } from "lucide-react";
 import { AdminLogin } from "@/components/admin/AdminLogin";
-import { AdminSettings } from "@/components/admin/AdminSettings";
 import { BriefEditor } from "@/components/admin/BriefEditor";
 import { useDraftBriefs, useAdminBriefs, useScheduledBriefs, AdminBrief } from "@/hooks/useAdminBriefs";
 import { Button } from "@/components/ui/button";
@@ -9,11 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
 function AdminDashboard() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin, logAction } = useAuth();
   const [selectedBrief, setSelectedBrief] = useState<AdminBrief | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState("newsroom");
@@ -22,7 +21,22 @@ function AdminDashboard() {
   const { data: allBriefs, refetch: refetchAll } = useAdminBriefs();
   const queryClient = useQueryClient();
 
+  // Subscriber count query (only for admins)
+  const { data: subscriberCount } = useQuery({
+    queryKey: ["subscriber-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("subscribers")
+        .select("*", { count: "exact", head: true });
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: isAdmin,
+  });
+
   const handleLogout = async () => {
+    await logAction("Logout");
     await signOut();
     toast.success("Logged out successfully");
   };
@@ -34,6 +48,11 @@ function AdminDashboard() {
   };
 
   const handleGenerate = async () => {
+    if (!isAdmin) {
+      toast.error("Admin access required");
+      return;
+    }
+
     setIsGenerating(true);
     toast.info("AI is researching latest laws...", {
       description: "This may take up to 30 seconds.",
@@ -43,6 +62,8 @@ function AdminDashboard() {
       const { data, error } = await supabase.functions.invoke("generate-brief");
       
       if (error) throw error;
+
+      await logAction("Generated Brief", { briefId: data?.brief?.id });
       
       toast.success("New brief generated!", {
         description: "Check your drafts to review and edit.",
@@ -89,6 +110,11 @@ function AdminDashboard() {
               <span className="text-primary-foreground font-bold text-sm">d</span>
             </div>
             <span className="font-bold text-xl">The Newsroom</span>
+            {isAdmin && (
+              <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-medium">
+                ADMIN
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
@@ -108,39 +134,41 @@ function AdminDashboard() {
               <Newspaper className="w-4 h-4" />
               Newsroom
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Settings
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Analytics
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="newsroom" className="space-y-8">
             {/* Generate Button */}
-            <div className="glass-card p-6 md:p-8 text-center">
-              <Sparkles className="w-12 h-12 mx-auto text-gold mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Generate New Brief</h2>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Let AI research the latest legal developments and create a new intelligence briefing.
-              </p>
-              <Button
-                size="lg"
-                className="btn-gold text-lg px-8"
-                onClick={handleGenerate}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <>
-                    <span className="animate-pulse mr-2">🤖</span>
-                    Connecting to AI Brain...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Generate with AI
-                  </>
-                )}
-              </Button>
-            </div>
+            {isAdmin && (
+              <div className="glass-card p-6 md:p-8 text-center">
+                <Sparkles className="w-12 h-12 mx-auto text-gold mb-4" />
+                <h2 className="text-2xl font-bold mb-2">Generate New Brief</h2>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  Let AI research the latest legal developments and create a new intelligence briefing.
+                </p>
+                <Button
+                  size="lg"
+                  className="btn-gold text-lg px-8"
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <>
+                      <span className="animate-pulse mr-2">🤖</span>
+                      Connecting to AI Brain...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 mr-2" />
+                      Generate with AI
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -309,8 +337,51 @@ function AdminDashboard() {
             </section>
           </TabsContent>
 
-          <TabsContent value="settings">
-            <AdminSettings />
+          <TabsContent value="analytics" className="space-y-8">
+            {/* Subscriber Stats */}
+            <div className="glass-card p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
+                  <Users className="w-8 h-8 text-accent" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold">{subscriberCount ?? "—"}</h2>
+                  <p className="text-muted-foreground">Total Newsletter Subscribers</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Subscriber data is protected by RLS policies. Only admins can view this information.
+              </p>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="glass-card p-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Quick Actions
+              </h3>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Button
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-start"
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                >
+                  <Sparkles className="w-5 h-5 mb-2 text-gold" />
+                  <span className="font-medium">Generate AI Brief</span>
+                  <span className="text-xs text-muted-foreground">Create new legal intelligence</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-start"
+                  onClick={handleRefresh}
+                >
+                  <RefreshCw className="w-5 h-5 mb-2 text-primary" />
+                  <span className="font-medium">Refresh Data</span>
+                  <span className="text-xs text-muted-foreground">Sync latest changes</span>
+                </Button>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </main>
@@ -319,14 +390,14 @@ function AdminDashboard() {
 }
 
 function AdminPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">Verifying access...</p>
         </div>
       </div>
     );
@@ -334,6 +405,25 @@ function AdminPage() {
 
   if (!user) {
     return <AdminLogin />;
+  }
+
+  // Check admin access
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="glass-card p-8 text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mx-auto mb-4">
+            <Users className="w-8 h-8 text-destructive" />
+          </div>
+          <h2 className="text-2xl font-bold text-destructive mb-4">Access Denied</h2>
+          <p className="text-muted-foreground mb-6">
+            You don't have admin privileges to access the dashboard. 
+            Please contact the administrator if you believe this is an error.
+          </p>
+          <p className="text-sm text-muted-foreground">Logged in as: {user.email}</p>
+        </div>
+      </div>
+    );
   }
 
   return <AdminDashboard />;
