@@ -56,8 +56,8 @@ export function LegalBriefsGrid() {
 
   if (isLoading) {
     return (
-      <section className="py-16" id="briefs">
-        <div className="container mx-auto px-4">
+      <section className="py-16 px-4 sm:px-6" id="briefs">
+        <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="skeleton h-64 rounded-xl" />
@@ -69,8 +69,8 @@ export function LegalBriefsGrid() {
   }
 
   return (
-    <section className="py-16" id="briefs">
-      <div className="container mx-auto px-4">
+    <section className="py-16 px-4 sm:px-6" id="briefs">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
@@ -112,7 +112,7 @@ export function LegalBriefsGrid() {
             {filteredBriefs.map((brief) => (
               <Card
                 key={brief.id}
-                className="glass-card hover-lift cursor-pointer group"
+                className="glass-card hover-lift cursor-pointer group h-full flex flex-col"
               >
                 <CardHeader>
                   <div className="flex items-center justify-between mb-2">
@@ -132,8 +132,8 @@ export function LegalBriefsGrid() {
                     {brief.title}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground text-sm line-clamp-4">
+                <CardContent className="flex-1 flex flex-col">
+                  <p className="text-muted-foreground text-sm line-clamp-4 flex-1">
                     {brief.content.replace(/[#*`]/g, "").substring(0, 200)}...
                   </p>
                   <button className="mt-4 text-sm text-primary font-medium flex items-center gap-1 group-hover:gap-2 transition-all">

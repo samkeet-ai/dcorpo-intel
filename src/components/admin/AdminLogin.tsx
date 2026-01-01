@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -16,8 +17,8 @@ export function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,26 +33,12 @@ export function AdminLogin() {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password);
-        if (error) {
-          if (error.message.includes("already registered")) {
-            toast.error("This email is already registered. Please sign in.");
-          } else {
-            toast.error(error.message);
-          }
+      const { error } = await signIn(email, password);
+      if (error) {
+        if (error.message.includes("Invalid login")) {
+          toast.error("Invalid email or password");
         } else {
-          toast.success("Account created! You can now sign in.");
-          setIsSignUp(false);
-        }
-      } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          if (error.message.includes("Invalid login")) {
-            toast.error("Invalid email or password");
-          } else {
-            toast.error(error.message);
-          }
+          toast.error(error.message);
         }
       }
     } catch (err: any) {
@@ -60,6 +47,105 @@ export function AdminLogin() {
       setIsLoading(false);
     }
   };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email.trim()) {
+      toast.error("Please enter your email address");
+      return;
+    }
+
+    const emailValidation = z.string().email().safeParse(email);
+    if (!emailValidation.success) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/admin`,
+      });
+
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success("Password reset email sent!", {
+          description: "Check your inbox for the reset link.",
+        });
+        setShowForgotPassword(false);
+      }
+    } catch (err) {
+      toast.error("Failed to send reset email");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="glass-card p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mb-4">
+              <Shield className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold mb-2">Reset Password</h1>
+            <p className="text-muted-foreground">
+              Enter your email to receive a reset link
+            </p>
+          </div>
+
+          <form onSubmit={handleForgotPassword} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  className="pl-10"
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full btn-gold"
+              size="lg"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                "Send Reset Link"
+              )}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(false)}
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              ← Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -70,7 +156,7 @@ export function AdminLogin() {
           </div>
           <h1 className="text-2xl font-bold mb-2">Admin Access</h1>
           <p className="text-muted-foreground">
-            {isSignUp ? "Create your admin account" : "Sign in to the Newsroom"}
+            Sign in to the Newsroom
           </p>
         </div>
 
@@ -118,10 +204,10 @@ export function AdminLogin() {
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                {isSignUp ? "Creating Account..." : "Signing In..."}
+                Signing In...
               </>
             ) : (
-              isSignUp ? "Create Account" : "Sign In"
+              "Sign In"
             )}
           </Button>
         </form>
@@ -129,12 +215,10 @@ export function AdminLogin() {
         <div className="mt-6 text-center">
           <button
             type="button"
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => setShowForgotPassword(true)}
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            {isSignUp
-              ? "Already have an account? Sign in"
-              : "Need an account? Sign up"}
+            Forgot password?
           </button>
         </div>
       </div>
