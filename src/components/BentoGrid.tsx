@@ -71,7 +71,7 @@ function DeepDiveTile({ text }: { text: string }) {
   };
 
   return (
-    <div className="glass-card hover-lift col-span-1 lg:col-span-2 row-span-1 lg:row-span-2 flex flex-col h-[400px] lg:h-[500px] animate-slide-up" style={{ animationDelay: "0.1s" }}>
+    <div className="glass-card hover-lift flex flex-col h-full animate-slide-up" style={{ animationDelay: "0.1s" }}>
       <div className="p-6 border-b border-border/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/20">
@@ -107,7 +107,7 @@ function DeepDiveTile({ text }: { text: string }) {
 function FunFactTile({ fact }: { fact: string }) {
   return (
     <div 
-      className="glass-card hover-lift col-span-1 flex flex-col justify-center p-6 min-h-[200px] animate-slide-up"
+      className="glass-card hover-lift flex flex-col justify-center p-6 h-full animate-slide-up"
       style={{ 
         animationDelay: "0.2s",
         background: "linear-gradient(135deg, hsl(280 70% 20% / 0.5), hsl(320 80% 25% / 0.5))"
@@ -126,7 +126,7 @@ function FunFactTile({ fact }: { fact: string }) {
 
 function RadarTile({ points }: { points: string[] }) {
   return (
-    <div className="glass-card hover-lift col-span-1 p-6 animate-slide-up" style={{ animationDelay: "0.3s" }}>
+    <div className="glass-card hover-lift p-6 h-full animate-slide-up" style={{ animationDelay: "0.3s" }}>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 rounded-lg bg-accent/20">
           <Globe className="w-5 h-5 text-accent" />
@@ -150,7 +150,7 @@ function RadarTile({ points }: { points: string[] }) {
 
 function JargonTile({ term, definition }: { term: string; definition: string }) {
   return (
-    <div className="glass-card hover-lift p-6 animate-slide-up" style={{ animationDelay: "0.4s" }}>
+    <div className="glass-card hover-lift p-6 h-full animate-slide-up" style={{ animationDelay: "0.4s" }}>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 rounded-lg bg-gold/20">
           <HelpCircle className="w-5 h-5 text-gold" />
@@ -169,12 +169,12 @@ function SkeletonGrid() {
   return (
     <section id="content" className="py-16 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="skeleton col-span-1 lg:col-span-2 lg:row-span-2 h-[400px] lg:h-[500px] rounded-xl" />
-          <div className="skeleton col-span-1 h-[200px] rounded-xl" />
-          <div className="skeleton col-span-1 h-[200px] rounded-xl" />
-          <div className="skeleton col-span-1 h-[200px] rounded-xl" />
-          <div className="skeleton col-span-1 h-[200px] rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr">
+          <div className="skeleton lg:col-span-2 lg:row-span-2 h-[300px] lg:h-auto rounded-xl" />
+          <div className="skeleton h-[200px] lg:h-auto rounded-xl" />
+          <div className="skeleton h-[200px] lg:h-auto rounded-xl" />
+          <div className="skeleton h-[200px] lg:h-auto rounded-xl" />
+          <div className="skeleton h-[200px] lg:h-auto rounded-xl" />
         </div>
       </div>
     </section>
@@ -188,27 +188,40 @@ export function BentoGrid({ brief, isLoading }: BentoGridProps) {
   return (
     <section id="content" className="py-16 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Deep Dive - 2x2 on desktop, full width on mobile */}
+        {/* Row 1: Deep Dive (2x2) + Fun Fact + Global Radar */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Deep Dive - spans 2 columns and 2 rows on large screens */}
           {brief.deep_dive_text && (
-            <DeepDiveTile text={brief.deep_dive_text} />
+            <div className="lg:col-span-2 lg:row-span-2 min-h-[300px] lg:min-h-[480px]">
+              <DeepDiveTile text={brief.deep_dive_text} />
+            </div>
           )}
 
-          {/* Fun Fact */}
-          {brief.fun_fact && <FunFactTile fact={brief.fun_fact} />}
+          {/* Fun Fact - right side, top */}
+          {brief.fun_fact && (
+            <div className="min-h-[220px]">
+              <FunFactTile fact={brief.fun_fact} />
+            </div>
+          )}
 
-          {/* Global Radar */}
+          {/* Global Radar - right side, top */}
           {brief.radar_points && brief.radar_points.length > 0 && (
-            <RadarTile points={brief.radar_points} />
+            <div className="min-h-[220px]">
+              <RadarTile points={brief.radar_points} />
+            </div>
           )}
 
-          {/* Jargon Buster */}
+          {/* Jargon Buster - right side, bottom */}
           {brief.jargon_term && brief.jargon_def && (
-            <JargonTile term={brief.jargon_term} definition={brief.jargon_def} />
+            <div className="min-h-[220px]">
+              <JargonTile term={brief.jargon_term} definition={brief.jargon_def} />
+            </div>
           )}
 
-          {/* DPDPA Readiness Card */}
-          <DPDPAReadinessCard />
+          {/* DPDPA Readiness Card - right side, bottom */}
+          <div className="min-h-[220px]">
+            <DPDPAReadinessCard />
+          </div>
         </div>
       </div>
     </section>
