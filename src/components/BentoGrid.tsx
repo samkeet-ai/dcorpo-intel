@@ -167,8 +167,8 @@ function JargonTile({ term, definition }: { term: string; definition: string }) 
 
 function SkeletonGrid() {
   return (
-    <section id="content" className="py-16">
-      <div className="container mx-auto px-4">
+    <section id="content" className="py-16 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="skeleton col-span-1 lg:col-span-2 lg:row-span-2 h-[400px] lg:h-[500px] rounded-xl" />
           <div className="skeleton col-span-1 h-[200px] rounded-xl" />
@@ -186,8 +186,8 @@ export function BentoGrid({ brief, isLoading }: BentoGridProps) {
   if (!brief) return null;
 
   return (
-    <section id="content" className="py-16">
-      <div className="container mx-auto px-4">
+    <section id="content" className="py-16 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Deep Dive - 2x2 on desktop, full width on mobile */}
           {brief.deep_dive_text && (

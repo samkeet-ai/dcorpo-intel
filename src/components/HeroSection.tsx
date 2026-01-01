@@ -21,8 +21,8 @@ function AudioWaveform() {
 
 function SkeletonHero() {
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-center pt-24 pb-16">
-      <div className="container mx-auto px-4">
+    <section className="relative min-h-[70vh] flex items-center justify-center pt-24 pb-16 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto w-full">
         <div className="relative rounded-2xl overflow-hidden glass-card">
           <div className="skeleton h-[500px] w-full" />
           <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-12">
@@ -60,8 +60,8 @@ export function HeroSection({ brief, isLoading }: HeroSectionProps) {
   };
 
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-center pt-24 pb-16">
-      <div className="container mx-auto px-4">
+    <section className="relative min-h-[70vh] flex items-center justify-center pt-24 pb-16 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto w-full">
         <div className="relative rounded-2xl overflow-hidden glass-card hover-lift animate-fade-in">
           {/* Cover Image */}
           <div className="relative h-[500px] w-full">

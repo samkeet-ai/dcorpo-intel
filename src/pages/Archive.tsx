@@ -4,7 +4,8 @@ import { Search, Calendar, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { StickyFooter } from "@/components/StickyFooter";
+import { BusinessConnect } from "@/components/BusinessConnect";
+import { CookieConsent } from "@/components/CookieConsent";
 import { useAllBriefs, useBriefsByMonth } from "@/hooks/useAllBriefs";
 import { Input } from "@/components/ui/input";
 
@@ -31,8 +32,8 @@ const Archive = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="pt-24 pb-32">
-        <div className="container mx-auto px-4">
+      <main className="pt-24 pb-32 px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-12">
             <Link 
@@ -167,7 +168,8 @@ const Archive = () => {
       </main>
 
       <Footer />
-      <StickyFooter />
+      <BusinessConnect />
+      <CookieConsent />
     </div>
   );
 };

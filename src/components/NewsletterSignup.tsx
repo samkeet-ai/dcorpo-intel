@@ -75,11 +75,11 @@ export function NewsletterSignup() {
   };
 
   return (
-    <section className="py-16 relative overflow-hidden">
+    <section className="py-16 relative overflow-hidden px-4 sm:px-6">
       {/* Background Gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-gold/10" />
       
-      <div className="container mx-auto px-4 relative">
+      <div className="max-w-7xl mx-auto relative">
         <div className="glass-card p-8 md:p-12 max-w-2xl mx-auto text-center">
           <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-6">
             {isSubscribed ? (

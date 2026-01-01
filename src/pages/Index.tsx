@@ -3,7 +3,6 @@ import { HeroSection } from "@/components/HeroSection";
 import { BentoGrid } from "@/components/BentoGrid";
 import { LegalBriefsGrid } from "@/components/LegalBriefsGrid";
 import { NewsletterSignup } from "@/components/NewsletterSignup";
-import { StickyFooter } from "@/components/StickyFooter";
 import { Footer } from "@/components/Footer";
 import { CookieConsent } from "@/components/CookieConsent";
 import { BusinessConnect } from "@/components/BusinessConnect";
@@ -24,7 +23,6 @@ const Index = () => {
       </main>
 
       <Footer />
-      <StickyFooter />
       <BusinessConnect />
       <CookieConsent />
     </div>
