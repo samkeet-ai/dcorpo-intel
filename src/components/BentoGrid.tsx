@@ -188,38 +188,38 @@ export function BentoGrid({ brief, isLoading }: BentoGridProps) {
   return (
     <section id="content" className="py-16 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto">
-        {/* Row 1: Deep Dive (2x2) + Fun Fact + Global Radar */}
+        {/* Desktop: 4-column grid with Deep Dive spanning 2x2 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Deep Dive - spans 2 columns and 2 rows on large screens */}
           {brief.deep_dive_text && (
-            <div className="lg:col-span-2 lg:row-span-2 min-h-[300px] lg:min-h-[480px]">
+            <div className="md:col-span-2 md:row-span-2 h-[400px] md:h-[500px]">
               <DeepDiveTile text={brief.deep_dive_text} />
             </div>
           )}
 
-          {/* Fun Fact - right side, top */}
+          {/* Fun Fact - top right first cell */}
           {brief.fun_fact && (
-            <div className="min-h-[220px]">
+            <div className="h-[230px]">
               <FunFactTile fact={brief.fun_fact} />
             </div>
           )}
 
-          {/* Global Radar - right side, top */}
+          {/* Global Radar - top right second cell */}
           {brief.radar_points && brief.radar_points.length > 0 && (
-            <div className="min-h-[220px]">
+            <div className="h-[230px]">
               <RadarTile points={brief.radar_points} />
             </div>
           )}
 
-          {/* Jargon Buster - right side, bottom */}
+          {/* Jargon Buster - bottom right first cell */}
           {brief.jargon_term && brief.jargon_def && (
-            <div className="min-h-[220px]">
+            <div className="h-[230px]">
               <JargonTile term={brief.jargon_term} definition={brief.jargon_def} />
             </div>
           )}
 
-          {/* DPDPA Readiness Card - right side, bottom */}
-          <div className="min-h-[220px]">
+          {/* DPDPA Readiness Card - bottom right second cell */}
+          <div className="h-[230px]">
             <DPDPAReadinessCard />
           </div>
         </div>
