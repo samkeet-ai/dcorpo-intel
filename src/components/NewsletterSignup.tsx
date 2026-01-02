@@ -48,22 +48,18 @@ export function NewsletterSignup() {
           status: "active"
         });
 
-      if (error) {
-        if (error.code === "23505") {
-          toast.info("You're already subscribed!", {
-            description: "We'll keep you updated with the latest legal intel.",
-          });
-          setIsSubscribed(true);
-        } else {
-          throw error;
-        }
-      } else {
-        toast.success("Welcome aboard!", {
-          description: "You'll receive our curated legal intelligence.",
-        });
-        setIsSubscribed(true);
-        setEmail("");
+      // Security: Don't reveal whether email already exists (prevents enumeration)
+      // Treat duplicate (23505) as success to avoid information disclosure
+      if (error && error.code !== "23505") {
+        throw error;
       }
+      
+      // Show same success message for both new and existing subscribers
+      toast.success("Thanks for subscribing!", {
+        description: "We'll keep you updated with the latest legal intel.",
+      });
+      setIsSubscribed(true);
+      setEmail("");
     } catch (error: any) {
       console.error("Subscription error:", error);
       toast.error("Failed to subscribe", {
