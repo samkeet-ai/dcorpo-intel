@@ -1,12 +1,26 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+// Allowed origins for CORS - restrict to known domains
+const allowedOrigins = [
+  "https://f7acae50-0fbd-4087-8934-696137cbfe76.lovableproject.com",
+  "https://lovable.dev",
+  "http://localhost:5173",
+  "http://localhost:8080",
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
 };
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -148,11 +162,9 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
       ? briefData.cover_image 
       : "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1200&h=600&fit=crop";
 
-    // Use service role key for database insert
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
-
-    const { data, error } = await adminClient.from("weekly_briefs").insert({
+    // Use authenticated user's client instead of service role for defense in depth
+    // The RLS policies on weekly_briefs allow authenticated users to insert
+    const { data, error } = await supabase.from("weekly_briefs").insert({
       title: briefData.title,
       deep_dive_text: briefData.deep_dive_text,
       fun_fact: briefData.fun_fact || null,
