@@ -1,5 +1,4 @@
-import { Play, Pause, Linkedin, ArrowDown } from "lucide-react";
-import { useState } from "react";
+import { Linkedin, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { WeeklyBrief } from "@/hooks/useWeeklyBrief";
 import { toast } from "sonner";
@@ -9,15 +8,6 @@ interface HeroSectionProps {
   isLoading: boolean;
 }
 
-function AudioWaveform() {
-  return (
-    <div className="flex items-center gap-0.5 h-6">
-      {[...Array(5)].map((_, i) => (
-        <div key={i} className="waveform-bar" style={{ animationDelay: `${i * 0.1}s` }} />
-      ))}
-    </div>
-  );
-}
 
 function SkeletonHero() {
   return (
@@ -42,8 +32,6 @@ function SkeletonHero() {
 }
 
 export function HeroSection({ brief, isLoading }: HeroSectionProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-
   if (isLoading) return <SkeletonHero />;
   if (!brief) return null;
 
@@ -103,23 +91,6 @@ export function HeroSection({ brief, isLoading }: HeroSectionProps) {
               >
                 Read Brief
                 <ArrowDown className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="px-6 py-3 rounded-lg font-semibold transition-all duration-300 bg-secondary hover:bg-secondary/80 flex items-center gap-3"
-              >
-                {isPlaying ? (
-                  <>
-                    <Pause className="w-5 h-5" />
-                    <AudioWaveform />
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-5 h-5" />
-                    Listen to Summary
-                  </>
-                )}
               </button>
 
               <button
