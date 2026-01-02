@@ -2,9 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-// Admin email for role-based access (can be moved to env or profiles table later)
-const ADMIN_EMAIL = "sam.doshi007@gmail.com";
-
 interface AuthState {
   user: User | null;
   session: Session | null;
@@ -57,9 +54,7 @@ export function useAuth() {
         if (session?.user) {
           setTimeout(async () => {
             const isAdmin = await checkAdminRole(session.user.id);
-            // Also check email as fallback for initial admin
-            const isAdminEmail = session.user.email === ADMIN_EMAIL;
-            setState(prev => ({ ...prev, isAdmin: isAdmin || isAdminEmail }));
+            setState(prev => ({ ...prev, isAdmin }));
           }, 0);
         } else {
           setState(prev => ({ ...prev, isAdmin: false }));
@@ -73,9 +68,6 @@ export function useAuth() {
       
       if (session?.user) {
         isAdmin = await checkAdminRole(session.user.id);
-        // Also check email as fallback for initial admin
-        const isAdminEmail = session.user.email === ADMIN_EMAIL;
-        isAdmin = isAdmin || isAdminEmail;
       }
 
       setState({
