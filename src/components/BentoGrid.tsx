@@ -107,59 +107,65 @@ function DeepDiveTile({ text }: { text: string }) {
 function FunFactTile({ fact }: { fact: string }) {
   return (
     <div 
-      className="glass-card hover-lift flex flex-col justify-center p-6 h-full animate-slide-up"
+      className="glass-card hover-lift flex flex-col h-full animate-slide-up"
       style={{ 
         animationDelay: "0.2s",
         background: "linear-gradient(135deg, hsl(280 70% 20% / 0.5), hsl(320 80% 25% / 0.5))"
       }}
     >
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
         <div className="p-2 rounded-lg bg-foreground/10">
           <Lightbulb className="w-5 h-5 text-gold" />
         </div>
         <h2 className="text-lg font-bold">Did You Know?</h2>
       </div>
-      <p className="text-xl md:text-2xl font-bold leading-snug">{fact}</p>
+      <div className="flex-1 overflow-y-auto p-4 pt-2 scrollbar-thin">
+        <p className="text-xl md:text-2xl font-bold leading-snug">{fact}</p>
+      </div>
     </div>
   );
 }
 
 function RadarTile({ points }: { points: string[] }) {
   return (
-    <div className="glass-card hover-lift p-6 h-full animate-slide-up" style={{ animationDelay: "0.3s" }}>
-      <div className="flex items-center gap-3 mb-4">
+    <div className="glass-card hover-lift flex flex-col h-full animate-slide-up" style={{ animationDelay: "0.3s" }}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
         <div className="p-2 rounded-lg bg-accent/20">
           <Globe className="w-5 h-5 text-accent" />
         </div>
         <h2 className="text-lg font-bold">Global Radar</h2>
       </div>
-      <ul className="space-y-3">
-        {points.slice(0, 3).map((point, index) => (
-          <li
-            key={index}
-            className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
-          >
-            <span className="text-xl shrink-0">{point.substring(0, 2)}</span>
-            <span className="text-sm text-muted-foreground">{point.substring(3)}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="flex-1 overflow-y-auto p-4 pt-2 scrollbar-thin">
+        <ul className="space-y-3">
+          {points.map((point, index) => (
+            <li
+              key={index}
+              className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+            >
+              <span className="text-xl shrink-0">{point.substring(0, 2)}</span>
+              <span className="text-sm text-muted-foreground">{point.substring(3)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
 
 function JargonTile({ term, definition }: { term: string; definition: string }) {
   return (
-    <div className="glass-card hover-lift p-6 h-full animate-slide-up" style={{ animationDelay: "0.4s" }}>
-      <div className="flex items-center gap-3 mb-4">
+    <div className="glass-card hover-lift flex flex-col h-full animate-slide-up" style={{ animationDelay: "0.4s" }}>
+      <div className="flex items-center gap-3 p-4 pb-2 shrink-0">
         <div className="p-2 rounded-lg bg-gold/20">
           <HelpCircle className="w-5 h-5 text-gold" />
         </div>
         <h2 className="text-lg font-bold">Jargon Buster</h2>
       </div>
-      <div className="space-y-3">
-        <h3 className="text-xl font-bold text-gradient-gold">{term}</h3>
-        <p className="text-muted-foreground leading-relaxed">{definition}</p>
+      <div className="flex-1 overflow-y-auto p-4 pt-2 scrollbar-thin">
+        <div className="space-y-3">
+          <h3 className="text-xl font-bold text-gradient-gold">{term}</h3>
+          <p className="text-muted-foreground leading-relaxed">{definition}</p>
+        </div>
       </div>
     </div>
   );
@@ -199,27 +205,27 @@ export function BentoGrid({ brief, isLoading }: BentoGridProps) {
 
           {/* Fun Fact - top right first cell */}
           {brief.fun_fact && (
-            <div className="h-[230px]">
+            <div className="min-h-[240px] h-auto">
               <FunFactTile fact={brief.fun_fact} />
             </div>
           )}
 
           {/* Global Radar - top right second cell */}
           {brief.radar_points && brief.radar_points.length > 0 && (
-            <div className="h-[230px]">
+            <div className="min-h-[240px] h-auto">
               <RadarTile points={brief.radar_points} />
             </div>
           )}
 
           {/* Jargon Buster - bottom right first cell */}
           {brief.jargon_term && brief.jargon_def && (
-            <div className="h-[230px]">
+            <div className="min-h-[240px] h-auto">
               <JargonTile term={brief.jargon_term} definition={brief.jargon_def} />
             </div>
           )}
 
           {/* DPDPA Readiness Card - bottom right second cell */}
-          <div className="h-[230px]">
+          <div className="min-h-[240px] h-auto">
             <DPDPAReadinessCard />
           </div>
         </div>
