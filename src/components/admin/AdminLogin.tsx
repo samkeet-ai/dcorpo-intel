@@ -35,11 +35,8 @@ export function AdminLogin() {
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        if (error.message.includes("Invalid login")) {
-          toast.error("Invalid email or password");
-        } else {
-          toast.error(error.message);
-        }
+        // Use generic error message to prevent information disclosure
+        toast.error("Invalid email or password");
       }
     } catch (err: any) {
       toast.error("An unexpected error occurred");
@@ -70,13 +67,14 @@ export function AdminLogin() {
       });
 
       if (error) {
-        toast.error(error.message);
-      } else {
-        toast.success("Password reset email sent!", {
-          description: "Check your inbox for the reset link.",
-        });
-        setShowForgotPassword(false);
+        // Use generic message to prevent email enumeration
+        console.error("Password reset error:", error);
       }
+      // Always show success to prevent email enumeration
+      toast.success("If an account exists, a reset email has been sent.", {
+        description: "Check your inbox for the reset link.",
+      });
+      setShowForgotPassword(false);
     } catch (err) {
       toast.error("Failed to send reset email");
     } finally {

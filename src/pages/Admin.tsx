@@ -76,7 +76,7 @@ function AdminDashboard() {
     } catch (error: any) {
       console.error("Generation error:", error);
       toast.error("Failed to generate brief", {
-        description: error.message || "Please try again later.",
+        description: "Please try again later.",
       });
     } finally {
       setIsGenerating(false);
