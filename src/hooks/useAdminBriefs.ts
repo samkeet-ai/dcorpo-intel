@@ -113,7 +113,8 @@ export function useUpdateBrief() {
       toast.success("Brief updated successfully!");
     },
     onError: (error) => {
-      toast.error("Failed to update brief: " + error.message);
+      console.error("Brief update error:", error);
+      toast.error("Failed to update brief. Please try again.");
     },
   });
 }
@@ -149,7 +150,8 @@ export function usePublishBrief() {
       toast.success("Brief published!");
     },
     onError: (error) => {
-      toast.error("Failed to publish: " + error.message);
+      console.error("Brief publish error:", error);
+      toast.error("Failed to publish. Please try again.");
     },
   });
 }
