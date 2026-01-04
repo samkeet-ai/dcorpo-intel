@@ -2,52 +2,66 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 
-// Allowed origins for CORS - restrict to known domains
-const allowedOrigins = [
-  "https://f7acae50-0fbd-4087-8934-696137cbfe76.lovableproject.com",
-  "https://lovable.dev",
-  "http://localhost:5173",
-  "http://localhost:8080",
-];
-
-const getCorsHeaders = (origin: string | null) => {
-  const allowedOrigin = origin && allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
+// CORS headers - allow all origins
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
-  const origin = req.headers.get("Origin");
-  const corsHeaders = getCorsHeaders(origin);
-  
+  // Debug logging
+  console.log("Request Method:", req.method);
+  console.log("Request Headers:", JSON.stringify(Object.fromEntries(req.headers.entries())));
+
+  // Handle CORS preflight requests FIRST
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    console.log("Handling OPTIONS preflight request");
+    return new Response(null, { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
-    // SECURITY: Verify JWT token from Authorization header
+    // Extract Authorization header
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth Header Present:", !!authHeader);
+    console.log("Auth Header Value:", authHeader ? `${authHeader.substring(0, 30)}...` : "MISSING");
+
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       console.error("Missing or invalid Authorization header");
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      return new Response(JSON.stringify({ error: "Unauthorized - Missing Bearer token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
+    // Initialize Supabase client with user's auth token
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("Missing Supabase environment variables");
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
     // Verify user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    console.log("Auth getUser result - User:", user?.email || "NO USER");
+    console.log("Auth getUser result - Error:", authError?.message || "NO ERROR");
+
     if (authError || !user) {
-      console.error("Auth error:", authError);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      console.error("No User Found - Auth error:", authError);
+      return new Response(JSON.stringify({ error: "No User Found" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -55,11 +69,13 @@ serve(async (req) => {
 
     console.log("Authenticated user:", user.email);
 
-    // SECURITY: Verify user has admin role - prevents non-admin users from consuming AI credits
+    // SECURITY: Verify user has admin role
     const { data: hasAdminRole, error: roleError } = await supabase.rpc('has_role', {
       _user_id: user.id,
       _role: 'admin'
     });
+
+    console.log("Admin role check - hasRole:", hasAdminRole, "Error:", roleError?.message || "NONE");
 
     if (roleError || !hasAdminRole) {
       console.error("Admin check failed:", roleError);
@@ -71,9 +87,14 @@ serve(async (req) => {
 
     console.log("Admin access verified for:", user.email);
 
+    // Get Gemini API key
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+      console.error("GEMINI_API_KEY is not configured");
+      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Generating new brief with Google Gemini...");
@@ -134,8 +155,7 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
       ? briefData.cover_image 
       : "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1200&h=600&fit=crop";
 
-    // Use authenticated user's client instead of service role for defense in depth
-    // The RLS policies on weekly_briefs allow authenticated users to insert
+    // Insert brief into database
     const { data, error } = await supabase.from("weekly_briefs").insert({
       title: briefData.title,
       deep_dive_text: briefData.deep_dive_text,
