@@ -59,7 +59,19 @@ function AdminDashboard() {
     });
     
     try {
-      const { data, error } = await supabase.functions.invoke("generate-brief");
+      // Get current session for JWT token
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Session Token:", session?.access_token ? "Present" : "Missing");
+      
+      if (!session?.access_token) {
+        throw new Error("No valid session. Please log in again.");
+      }
+
+      const { data, error } = await supabase.functions.invoke("generate-brief", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
       
       if (error) throw error;
 
@@ -76,7 +88,7 @@ function AdminDashboard() {
     } catch (error: any) {
       console.error("Generation error:", error);
       toast.error("Failed to generate brief", {
-        description: "Please try again later.",
+        description: error.message || "Please try again later.",
       });
     } finally {
       setIsGenerating(false);
