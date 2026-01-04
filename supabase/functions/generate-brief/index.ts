@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 
 // Allowed origins for CORS - restrict to known domains
 const allowedOrigins = [
@@ -70,12 +71,16 @@ serve(async (req) => {
 
     console.log("Admin access verified for:", user.email);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    console.log("Generating new brief with AI...");
+    console.log("Generating new brief with Google Gemini...");
+
+    // Initialize Google Generative AI
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
     const prompt = `You are a legal technology expert creating a weekly intelligence briefing. Today's date is ${new Date().toISOString().split('T')[0]}.
 
@@ -101,61 +106,28 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
   "cover_image": "https://images.unsplash.com/photo-[VALID_UNSPLASH_ID]?w=1200&h=600&fit=crop"
 }`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are a legal technology expert. Always respond with valid JSON only, no markdown code blocks." },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const aiResponse = await response.json();
-    const content = aiResponse.choices?.[0]?.message?.content;
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const content = response.text();
 
     if (!content) {
-      throw new Error("No content in AI response");
+      throw new Error("No content in Gemini response");
     }
 
-    console.log("AI Response received");
+    console.log("Gemini Response received");
 
     let briefData;
     try {
       const cleanedContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       briefData = JSON.parse(cleanedContent);
     } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
-      throw new Error("Failed to parse AI response as JSON");
+      console.error("Failed to parse Gemini response:", parseError);
+      console.error("Raw content:", content);
+      throw new Error("Failed to parse Gemini response as JSON");
     }
 
     if (!briefData.title || !briefData.deep_dive_text) {
-      throw new Error("AI response missing required fields");
+      throw new Error("Gemini response missing required fields");
     }
 
     const coverImage = briefData.cover_image?.includes("unsplash.com") 
