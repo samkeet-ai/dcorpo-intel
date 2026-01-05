@@ -5,15 +5,9 @@ import { toast } from "sonner";
 export interface AdminBrief {
   id: string;
   title: string;
-  cover_image: string | null;
-  publish_date: string;
-  status: string;
-  deep_dive_text: string | null;
-  fun_fact: string | null;
-  radar_points: string[];
-  jargon_term: string | null;
-  jargon_def: string | null;
-  linkedin_caption: string | null;
+  content: string;
+  category: string;
+  is_published: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -23,18 +17,12 @@ export function useAdminBriefs() {
     queryKey: ["admin-briefs"],
     queryFn: async (): Promise<AdminBrief[]> => {
       const { data, error } = await supabase
-        .from("weekly_briefs")
+        .from("legal_briefs")
         .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
-      return (data || []).map((brief) => ({
-        ...brief,
-        radar_points: typeof brief.radar_points === 'string' 
-          ? JSON.parse(brief.radar_points) 
-          : (brief.radar_points as string[]) || []
-      }));
+      return data || [];
     },
   });
 }
@@ -44,41 +32,29 @@ export function useDraftBriefs() {
     queryKey: ["draft-briefs"],
     queryFn: async (): Promise<AdminBrief[]> => {
       const { data, error } = await supabase
-        .from("weekly_briefs")
+        .from("legal_briefs")
         .select("*")
-        .eq("status", "draft")
+        .eq("is_published", false)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
-      return (data || []).map((brief) => ({
-        ...brief,
-        radar_points: typeof brief.radar_points === 'string' 
-          ? JSON.parse(brief.radar_points) 
-          : (brief.radar_points as string[]) || []
-      }));
+      return data || [];
     },
   });
 }
 
-export function useScheduledBriefs() {
+export function usePublishedBriefs() {
   return useQuery({
-    queryKey: ["scheduled-briefs"],
+    queryKey: ["published-briefs"],
     queryFn: async (): Promise<AdminBrief[]> => {
       const { data, error } = await supabase
-        .from("weekly_briefs")
+        .from("legal_briefs")
         .select("*")
-        .gt("publish_date", new Date().toISOString())
-        .order("publish_date", { ascending: true });
+        .eq("is_published", true)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
-      return (data || []).map((brief) => ({
-        ...brief,
-        radar_points: typeof brief.radar_points === 'string' 
-          ? JSON.parse(brief.radar_points) 
-          : (brief.radar_points as string[]) || []
-      }));
+      return data || [];
     },
   });
 }
@@ -89,18 +65,13 @@ export function useUpdateBrief() {
   return useMutation({
     mutationFn: async (brief: Partial<AdminBrief> & { id: string }) => {
       const { id, ...updateData } = brief;
-      
-      const dataToUpdate = {
-        ...updateData,
-        radar_points: updateData.radar_points 
-          ? JSON.stringify(updateData.radar_points) 
-          : undefined,
-        updated_at: new Date().toISOString()
-      };
 
       const { error } = await supabase
-        .from("weekly_briefs")
-        .update(dataToUpdate)
+        .from("legal_briefs")
+        .update({
+          ...updateData,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id);
 
       if (error) throw error;
@@ -108,8 +79,7 @@ export function useUpdateBrief() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
-      queryClient.invalidateQueries({ queryKey: ["scheduled-briefs"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-brief"] });
+      queryClient.invalidateQueries({ queryKey: ["published-briefs"] });
       toast.success("Brief updated successfully!");
     },
     onError: (error) => {
@@ -124,19 +94,11 @@ export function usePublishBrief() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      // First, set all other active briefs to draft
-      await supabase
-        .from("weekly_briefs")
-        .update({ status: "draft" })
-        .eq("status", "active");
-
-      // Then publish this one
       const { error } = await supabase
-        .from("weekly_briefs")
-        .update({ 
-          status: "active", 
-          publish_date: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+        .from("legal_briefs")
+        .update({
+          is_published: true,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", id);
 
@@ -145,13 +107,40 @@ export function usePublishBrief() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
-      queryClient.invalidateQueries({ queryKey: ["scheduled-briefs"] });
-      queryClient.invalidateQueries({ queryKey: ["weekly-brief"] });
+      queryClient.invalidateQueries({ queryKey: ["published-briefs"] });
       toast.success("Brief published!");
     },
     onError: (error) => {
       console.error("Brief publish error:", error);
       toast.error("Failed to publish. Please try again.");
+    },
+  });
+}
+
+export function useUnpublishBrief() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("legal_briefs")
+        .update({
+          is_published: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["published-briefs"] });
+      toast.success("Brief unpublished!");
+    },
+    onError: (error) => {
+      console.error("Brief unpublish error:", error);
+      toast.error("Failed to unpublish. Please try again.");
     },
   });
 }
