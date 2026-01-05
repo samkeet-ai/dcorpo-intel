@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { LogOut, Sparkles, FileText, Clock, CheckCircle, Calendar, RefreshCw, Newspaper, Users, Plus } from "lucide-react";
+import { LogOut, Sparkles, FileText, Clock, CheckCircle, RefreshCw, Newspaper, Users, Plus } from "lucide-react";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { BriefEditor } from "@/components/admin/BriefEditor";
-import { useDraftBriefs, useAdminBriefs, useScheduledBriefs, AdminBrief } from "@/hooks/useAdminBriefs";
+import { useDraftBriefs, useAdminBriefs, usePublishedBriefs, AdminBrief } from "@/hooks/useAdminBriefs";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
@@ -17,7 +17,7 @@ function AdminDashboard() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState("newsroom");
   const { data: drafts, isLoading: draftsLoading, refetch: refetchDrafts } = useDraftBriefs();
-  const { data: scheduled, isLoading: scheduledLoading, refetch: refetchScheduled } = useScheduledBriefs();
+  const { data: published, isLoading: publishedLoading, refetch: refetchPublished } = usePublishedBriefs();
   const { data: allBriefs, refetch: refetchAll } = useAdminBriefs();
   const queryClient = useQueryClient();
 
@@ -28,7 +28,7 @@ function AdminDashboard() {
       const { count, error } = await supabase
         .from("subscribers")
         .select("*", { count: "exact", head: true });
-      
+
       if (error) throw error;
       return count || 0;
     },
@@ -43,7 +43,7 @@ function AdminDashboard() {
 
   const handleRefresh = async () => {
     toast.info("Refreshing briefs...");
-    await Promise.all([refetchDrafts(), refetchScheduled(), refetchAll()]);
+    await Promise.all([refetchDrafts(), refetchPublished(), refetchAll()]);
     toast.success("Briefs refreshed!");
   };
 
@@ -57,34 +57,34 @@ function AdminDashboard() {
     toast.info("AI is researching latest laws...", {
       description: "This may take up to 30 seconds.",
     });
-    
+
     try {
       // Get current session for JWT token
       const { data: { session } } = await supabase.auth.getSession();
       console.log("Session Token:", session?.access_token ? "Present" : "Missing");
-      
+
       if (!session?.access_token) {
         throw new Error("No valid session. Please log in again.");
       }
 
       const { data, error } = await supabase.functions.invoke("generate-brief", {
         headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
-      
+
       if (error) throw error;
 
       await logAction("Generated Brief", { briefId: data?.brief?.id });
-      
+
       toast.success("New brief generated!", {
         description: "Check your drafts to review and edit.",
       });
-      
+
       // Refresh the briefs lists
       queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
-      queryClient.invalidateQueries({ queryKey: ["scheduled-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["published-briefs"] });
     } catch (error: any) {
       console.error("Generation error:", error);
       toast.error("Failed to generate brief", {
@@ -108,9 +108,8 @@ function AdminDashboard() {
     );
   }
 
-  const activeBriefs = allBriefs?.filter((b) => b.status === "active") || [];
   const draftBriefs = drafts || [];
-  const scheduledBriefs = scheduled || [];
+  const publishedBriefs = published || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -183,7 +182,7 @@ function AdminDashboard() {
             )}
 
             {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="glass-card p-4 text-center">
                 <FileText className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
                 <p className="text-2xl font-bold">{allBriefs?.length || 0}</p>
@@ -195,13 +194,8 @@ function AdminDashboard() {
                 <p className="text-sm text-muted-foreground">Drafts</p>
               </div>
               <div className="glass-card p-4 text-center">
-                <Calendar className="w-6 h-6 mx-auto text-primary mb-2" />
-                <p className="text-2xl font-bold">{scheduledBriefs.length}</p>
-                <p className="text-sm text-muted-foreground">Scheduled</p>
-              </div>
-              <div className="glass-card p-4 text-center">
                 <CheckCircle className="w-6 h-6 mx-auto text-accent mb-2" />
-                <p className="text-2xl font-bold">{activeBriefs.length}</p>
+                <p className="text-2xl font-bold">{publishedBriefs.length}</p>
                 <p className="text-sm text-muted-foreground">Published</p>
               </div>
             </div>
@@ -218,7 +212,7 @@ function AdminDashboard() {
                   Refresh List
                 </Button>
               </div>
-              
+
               {draftsLoading ? (
                 <div className="grid gap-4">
                   {[...Array(2)].map((_, i) => (
@@ -237,64 +231,15 @@ function AdminDashboard() {
                       onClick={() => setSelectedBrief(brief)}
                       className="glass-card hover-lift p-4 md:p-6 text-left flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full"
                     >
-                      {brief.cover_image && (
-                        <img
-                          src={brief.cover_image}
-                          alt=""
-                          className="w-full sm:w-24 h-32 sm:h-16 object-cover rounded-lg shrink-0"
-                        />
-                      )}
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-lg truncate">{brief.title}</h4>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <h4 className="font-semibold text-lg truncate">{brief.title}</h4>
+                          <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">
+                            {brief.category}
+                          </span>
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           Created {format(new Date(brief.created_at), "MMM d, yyyy 'at' h:mm a")}
-                        </p>
-                      </div>
-                      <span className="text-primary font-medium">Edit →</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* Scheduled Section */}
-            <section>
-              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                Scheduled for Publication
-              </h3>
-              
-              {scheduledLoading ? (
-                <div className="grid gap-4">
-                  {[...Array(1)].map((_, i) => (
-                    <div key={i} className="skeleton h-24 rounded-xl" />
-                  ))}
-                </div>
-              ) : scheduledBriefs.length === 0 ? (
-                <div className="glass-card p-8 text-center text-muted-foreground">
-                  No scheduled briefs. Set a future publish date to schedule.
-                </div>
-              ) : (
-                <div className="grid gap-4">
-                  {scheduledBriefs.map((brief) => (
-                    <button
-                      key={brief.id}
-                      onClick={() => setSelectedBrief(brief)}
-                      className="glass-card hover-lift p-4 md:p-6 text-left flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full border-l-4 border-primary"
-                    >
-                      {brief.cover_image && (
-                        <img
-                          src={brief.cover_image}
-                          alt=""
-                          className="w-full sm:w-24 h-32 sm:h-16 object-cover rounded-lg shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-lg truncate">{brief.title}</h4>
-                        </div>
-                        <p className="text-sm text-primary font-medium">
-                          Scheduled for {format(new Date(brief.publish_date), "MMM d, yyyy 'at' h:mm a")}
                         </p>
                       </div>
                       <span className="text-primary font-medium">Edit →</span>
@@ -310,35 +255,37 @@ function AdminDashboard() {
                 <CheckCircle className="w-5 h-5 text-accent" />
                 Published Briefs
               </h3>
-              
-              {activeBriefs.length === 0 ? (
+
+              {publishedLoading ? (
+                <div className="grid gap-4">
+                  {[...Array(2)].map((_, i) => (
+                    <div key={i} className="skeleton h-24 rounded-xl" />
+                  ))}
+                </div>
+              ) : publishedBriefs.length === 0 ? (
                 <div className="glass-card p-8 text-center text-muted-foreground">
                   No published briefs yet.
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  {activeBriefs.map((brief) => (
+                  {publishedBriefs.map((brief) => (
                     <button
                       key={brief.id}
                       onClick={() => setSelectedBrief(brief)}
                       className="glass-card hover-lift p-4 md:p-6 text-left flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full"
                     >
-                      {brief.cover_image && (
-                        <img
-                          src={brief.cover_image}
-                          alt=""
-                          className="w-full sm:w-24 h-32 sm:h-16 object-cover rounded-lg shrink-0"
-                        />
-                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h4 className="font-semibold text-lg truncate">{brief.title}</h4>
                           <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs">
                             LIVE
                           </span>
+                          <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">
+                            {brief.category}
+                          </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Published {format(new Date(brief.publish_date), "MMM d, yyyy")}
+                          Updated {format(new Date(brief.updated_at), "MMM d, yyyy")}
                         </p>
                       </div>
                       <span className="text-primary font-medium">Edit →</span>
@@ -423,16 +370,11 @@ function AdminPage() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="glass-card p-8 text-center max-w-md">
-          <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mx-auto mb-4">
-            <Users className="w-8 h-8 text-destructive" />
-          </div>
-          <h2 className="text-2xl font-bold text-destructive mb-4">Access Denied</h2>
-          <p className="text-muted-foreground mb-6">
-            You don't have admin privileges to access the dashboard. 
-            Please contact the administrator if you believe this is an error.
+        <div className="glass-card p-8 max-w-md w-full text-center">
+          <h2 className="text-xl font-bold text-destructive mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">
+            You do not have admin privileges. Contact support if you believe this is an error.
           </p>
-          <p className="text-sm text-muted-foreground">Logged in as: {user.email}</p>
         </div>
       </div>
     );
