@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { LogOut, Sparkles, FileText, Clock, CheckCircle, RefreshCw, Newspaper, Users, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { BriefEditor } from "@/components/admin/BriefEditor";
 import { useDraftBriefs, useAdminBriefs, usePublishedBriefs, AdminBrief } from "@/hooks/useAdminBriefs";
@@ -16,6 +17,7 @@ function AdminDashboard() {
   const [selectedBrief, setSelectedBrief] = useState<AdminBrief | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState("newsroom");
+  const [topic, setTopic] = useState("");
   const { data: drafts, isLoading: draftsLoading, refetch: refetchDrafts } = useDraftBriefs();
   const { data: published, isLoading: publishedLoading, refetch: refetchPublished } = usePublishedBriefs();
   const { data: allBriefs, refetch: refetchAll } = useAdminBriefs();
@@ -68,6 +70,7 @@ function AdminDashboard() {
       }
 
       const { data, error } = await supabase.functions.invoke("generate-brief", {
+        body: { topic: topic },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -80,6 +83,9 @@ function AdminDashboard() {
       toast.success("New brief generated!", {
         description: "Check your drafts to review and edit.",
       });
+
+      // Clear the topic input after successful generation
+      setTopic("");
 
       // Refresh the briefs lists
       queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
@@ -157,9 +163,17 @@ function AdminDashboard() {
               <div className="glass-card p-6 md:p-8 text-center">
                 <Sparkles className="w-12 h-12 mx-auto text-gold mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Generate New Brief</h2>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                <p className="text-muted-foreground mb-4 max-w-md mx-auto">
                   Let AI research the latest legal developments and create a new intelligence briefing.
                 </p>
+                <Input
+                  type="text"
+                  placeholder="Enter a topic (e.g., 'Deepfake Regulation') or leave blank for random trending news..."
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  className="max-w-lg mx-auto mb-4"
+                  disabled={isGenerating}
+                />
                 <Button
                   size="lg"
                   className="btn-gold text-lg px-8"
