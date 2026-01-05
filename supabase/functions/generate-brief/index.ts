@@ -1,41 +1,58 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 
-// CORS headers - allow all origins
+// 1. DEFINE CORS HEADERS GLOBALLY
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-serve(async (req) => {
-  console.log("=== GENERATE-BRIEF FUNCTION CALLED (NO AUTH - DEBUG MODE) ===");
-  console.log("Request Method:", req.method);
-
-  // Handle CORS preflight requests FIRST
+Deno.serve(async (req) => {
+  // 2. HANDLE PRE-FLIGHT (OPTIONS) IMMEDIATELY
   if (req.method === "OPTIONS") {
-    console.log("Handling OPTIONS preflight request");
-    return new Response(null, { 
-      status: 200,
-      headers: corsHeaders 
-    });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Get Gemini API key
+    // 3. DEBUG LOGGING
+    console.log("Request received:", req.method);
+
+    // 4. AUTHENTICATION (Manual Check)
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Missing Authorization header");
+    }
+
+    // Initialize Supabase Client with user's token
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Verify User
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      console.error("Auth Error:", userError);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", details: userError }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("User authenticated:", user.id);
+
+    // 5. GEMINI LOGIC (Only runs if Auth passes)
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
       console.error("GEMINI_API_KEY is not configured");
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY is not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "GEMINI_API_KEY is not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log("GEMINI_API_KEY found, proceeding with generation...");
-
-    // Initialize Google Generative AI
+    console.log("Calling Gemini API...");
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
@@ -63,7 +80,6 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
   "cover_image": "https://images.unsplash.com/photo-[VALID_UNSPLASH_ID]?w=1200&h=600&fit=crop"
 }`;
 
-    console.log("Calling Gemini API...");
     const result = await model.generateContent(prompt);
     const response = result.response;
     const content = response.text();
@@ -88,27 +104,19 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
       throw new Error("Gemini response missing required fields");
     }
 
-    const coverImage = briefData.cover_image?.includes("unsplash.com") 
-      ? briefData.cover_image 
+    const coverImage = briefData.cover_image?.includes("unsplash.com")
+      ? briefData.cover_image
       : "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1200&h=600&fit=crop";
 
-    // Initialize Supabase client (using service role for DB insert since no user auth)
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase environment variables");
-      return new Response(JSON.stringify({ error: "Server configuration error" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Use service role for DB insert
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
 
     // Insert brief into database
     console.log("Inserting brief into database...");
-    const { data, error } = await supabase.from("weekly_briefs").insert({
+    const { data, error } = await supabaseAdmin.from("weekly_briefs").insert({
       title: briefData.title,
       deep_dive_text: briefData.deep_dive_text,
       fun_fact: briefData.fun_fact || null,
@@ -126,16 +134,20 @@ Respond with a JSON object (no markdown, just valid JSON) with this exact struct
       throw error;
     }
 
+    // 6. SUCCESS RESPONSE
     console.log("Brief created successfully:", data.id);
-    return new Response(JSON.stringify({ success: true, brief: data }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true, brief: data }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
   } catch (error: unknown) {
+    // 7. ERROR HANDLING
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error generating brief:", error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("Function Error:", error);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
