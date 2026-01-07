@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { LogOut, Sparkles, FileText, Clock, CheckCircle, RefreshCw, Newspaper, Users, Plus } from "lucide-react";
+// Added Trash2 to imports
+import { LogOut, Sparkles, FileText, Clock, CheckCircle, RefreshCw, Newspaper, Users, Plus, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminLogin } from "@/components/admin/AdminLogin";
@@ -50,6 +51,26 @@ function AdminDashboard() {
     toast.success("Briefs refreshed!");
   };
 
+  // --- NEW DELETE FUNCTION ---
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Prevent opening the editor
+    if (!window.confirm("Are you sure you want to delete this brief? This cannot be undone.")) return;
+
+    try {
+      const { error } = await supabase.from("legal_briefs").delete().eq("id", id);
+      if (error) throw error;
+      
+      toast.success("Brief deleted successfully");
+      // Refresh lists
+      queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
+      queryClient.invalidateQueries({ queryKey: ["published-briefs"] });
+    } catch (error: any) {
+      toast.error("Failed to delete brief", { description: error.message });
+    }
+  };
+  // ---------------------------
+
   const handleGenerate = async () => {
     if (!isAdmin) {
       toast.error("Admin access required");
@@ -62,33 +83,21 @@ function AdminDashboard() {
     });
 
     try {
-      // Get current session for JWT token
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("Session Token:", session?.access_token ? "Present" : "Missing");
+      if (!session?.access_token) throw new Error("No valid session.");
 
-      if (!session?.access_token) {
-        throw new Error("No valid session. Please log in again.");
-      }
-
+      // Sends topic to backend
       const { data, error } = await supabase.functions.invoke("generate-brief", {
         body: { topic: topic },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (error) throw error;
 
       await logAction("Generated Brief", { briefId: data?.brief?.id });
-
-      toast.success("New brief generated!", {
-        description: "Check your drafts to review and edit.",
-      });
-
-      // Clear the topic input after successful generation
+      toast.success("New brief generated!");
       setTopic("");
-
-      // Refresh the briefs lists
+      
       queryClient.invalidateQueries({ queryKey: ["draft-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["admin-briefs"] });
       queryClient.invalidateQueries({ queryKey: ["published-briefs"] });
@@ -120,7 +129,6 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -128,11 +136,7 @@ function AdminDashboard() {
               <span className="text-primary-foreground font-bold text-sm">d</span>
             </div>
             <span className="font-bold text-xl">The Newsroom</span>
-            {isAdmin && (
-              <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-medium">
-                ADMIN
-              </span>
-            )}
+            {isAdmin && <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs font-medium">ADMIN</span>}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email}</span>
@@ -144,7 +148,6 @@ function AdminDashboard() {
         </div>
       </header>
 
-      {/* Main Content with Tabs */}
       <main className="max-w-6xl mx-auto p-4 md:p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-2">
@@ -159,7 +162,6 @@ function AdminDashboard() {
           </TabsList>
 
           <TabsContent value="newsroom" className="space-y-8">
-            {/* Generate Button */}
             {isAdmin && (
               <div className="glass-card p-6 md:p-8 text-center">
                 <Sparkles className="w-12 h-12 mx-auto text-gold mb-4" />
@@ -179,22 +181,11 @@ function AdminDashboard() {
                     Leave blank for a random trending topic.
                   </p>
                 </div>
-                <Button
-                  size="lg"
-                  className="btn-gold text-lg px-8"
-                  onClick={handleGenerate}
-                  disabled={isGenerating}
-                >
+                <Button size="lg" className="btn-gold text-lg px-8" onClick={handleGenerate} disabled={isGenerating}>
                   {isGenerating ? (
-                    <>
-                      <span className="animate-pulse mr-2">🤖</span>
-                      Connecting to AI Brain...
-                    </>
+                    <><span className="animate-pulse mr-2">🤖</span>Connecting to AI Brain...</>
                   ) : (
-                    <>
-                      <Sparkles className="w-5 h-5 mr-2" />
-                      Generate with AI
-                    </>
+                    <><Sparkles className="w-5 h-5 mr-2" />Generate with AI</>
                   )}
                 </Button>
               </div>
@@ -234,9 +225,7 @@ function AdminDashboard() {
 
               {draftsLoading ? (
                 <div className="grid gap-4">
-                  {[...Array(2)].map((_, i) => (
-                    <div key={i} className="skeleton h-24 rounded-xl" />
-                  ))}
+                  {[...Array(2)].map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
                 </div>
               ) : draftBriefs.length === 0 ? (
                 <div className="glass-card p-8 text-center text-muted-foreground">
@@ -245,10 +234,10 @@ function AdminDashboard() {
               ) : (
                 <div className="grid gap-4">
                   {draftBriefs.map((brief) => (
-                    <button
+                    <div
                       key={brief.id}
                       onClick={() => setSelectedBrief(brief)}
-                      className="glass-card hover-lift p-4 md:p-6 text-left flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full"
+                      className="glass-card hover-lift p-4 md:p-6 text-left flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -261,8 +250,19 @@ function AdminDashboard() {
                           Created {format(new Date(brief.created_at), "MMM d, yyyy 'at' h:mm a")}
                         </p>
                       </div>
-                      <span className="text-primary font-medium">Edit →</span>
-                    </button>
+                      <div className="flex items-center gap-2">
+                         <span className="text-primary font-medium group-hover:underline">Edit</span>
+                         {/* DELETE BUTTON */}
+                         <Button 
+                           variant="ghost" 
+                           size="icon" 
+                           className="text-destructive hover:bg-destructive/10"
+                           onClick={(e) => handleDelete(e, brief.id)}
+                         >
+                           <Trash2 className="w-4 h-4" />
+                         </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -277,9 +277,7 @@ function AdminDashboard() {
 
               {publishedLoading ? (
                 <div className="grid gap-4">
-                  {[...Array(2)].map((_, i) => (
-                    <div key={i} className="skeleton h-24 rounded-xl" />
-                  ))}
+                  {[...Array(2)].map((_, i) => <div key={i} className="skeleton h-24 rounded-xl" />)}
                 </div>
               ) : publishedBriefs.length === 0 ? (
                 <div className="glass-card p-8 text-center text-muted-foreground">
@@ -288,27 +286,34 @@ function AdminDashboard() {
               ) : (
                 <div className="grid gap-4">
                   {publishedBriefs.map((brief) => (
-                    <button
+                    <div
                       key={brief.id}
                       onClick={() => setSelectedBrief(brief)}
-                      className="glass-card hover-lift p-4 md:p-6 text-left flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full"
+                      className="glass-card hover-lift p-4 md:p-6 text-left flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full cursor-pointer group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h4 className="font-semibold text-lg truncate">{brief.title}</h4>
-                          <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs">
-                            LIVE
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">
-                            {brief.category}
-                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-accent/20 text-accent text-xs">LIVE</span>
+                          <span className="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs">{brief.category}</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           Updated {format(new Date(brief.updated_at), "MMM d, yyyy")}
                         </p>
                       </div>
-                      <span className="text-primary font-medium">Edit →</span>
-                    </button>
+                      <div className="flex items-center gap-2">
+                         <span className="text-primary font-medium group-hover:underline">Edit</span>
+                         {/* DELETE BUTTON */}
+                         <Button 
+                           variant="ghost" 
+                           size="icon" 
+                           className="text-destructive hover:bg-destructive/10"
+                           onClick={(e) => handleDelete(e, brief.id)}
+                         >
+                           <Trash2 className="w-4 h-4" />
+                         </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -316,7 +321,6 @@ function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-8">
-            {/* Subscriber Stats */}
             <div className="glass-card p-8">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center">
@@ -327,33 +331,17 @@ function AdminDashboard() {
                   <p className="text-muted-foreground">Total Newsletter Subscribers</p>
                 </div>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Subscriber data is protected by RLS policies. Only admins can view this information.
-              </p>
+              <p className="text-sm text-muted-foreground">Subscriber data is protected by RLS policies. Only admins can view this information.</p>
             </div>
-
-            {/* Quick Actions */}
             <div className="glass-card p-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Plus className="w-5 h-5" />
-                Quick Actions
-              </h3>
+              <h3 className="font-semibold mb-4 flex items-center gap-2"><Plus className="w-5 h-5" /> Quick Actions</h3>
               <div className="grid sm:grid-cols-2 gap-4">
-                <Button
-                  variant="outline"
-                  className="h-auto p-4 flex flex-col items-start"
-                  onClick={handleGenerate}
-                  disabled={isGenerating}
-                >
+                <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={handleGenerate} disabled={isGenerating}>
                   <Sparkles className="w-5 h-5 mb-2 text-gold" />
                   <span className="font-medium">Generate AI Brief</span>
                   <span className="text-xs text-muted-foreground">Create new legal intelligence</span>
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto p-4 flex flex-col items-start"
-                  onClick={handleRefresh}
-                >
+                <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={handleRefresh}>
                   <RefreshCw className="w-5 h-5 mb-2 text-primary" />
                   <span className="font-medium">Refresh Data</span>
                   <span className="text-xs text-muted-foreground">Sync latest changes</span>
@@ -369,36 +357,9 @@ function AdminDashboard() {
 
 function AdminPage() {
   const { user, loading, isAdmin } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Verifying access...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AdminLogin />;
-  }
-
-  // Check admin access
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="glass-card p-8 max-w-md w-full text-center">
-          <h2 className="text-xl font-bold text-destructive mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">
-            You do not have admin privileges. Contact support if you believe this is an error.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" /><p className="text-muted-foreground">Verifying access...</p></div></div>;
+  if (!user) return <AdminLogin />;
+  if (!isAdmin) return <div className="min-h-screen bg-background flex items-center justify-center p-4"><div className="glass-card p-8 max-w-md w-full text-center"><h2 className="text-xl font-bold text-destructive mb-2">Access Denied</h2><p className="text-muted-foreground">You do not have admin privileges. Contact support if you believe this is an error.</p></div></div>;
   return <AdminDashboard />;
 }
 
