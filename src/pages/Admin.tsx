@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LogOut, Sparkles, FileText, Clock, CheckCircle, RefreshCw, Newspaper, Users, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { BriefEditor } from "@/components/admin/BriefEditor";
 import { useDraftBriefs, useAdminBriefs, usePublishedBriefs, AdminBrief } from "@/hooks/useAdminBriefs";
@@ -166,14 +167,18 @@ function AdminDashboard() {
                 <p className="text-muted-foreground mb-4 max-w-md mx-auto">
                   Let AI research the latest legal developments and create a new intelligence briefing.
                 </p>
-                <Input
-                  type="text"
-                  placeholder="Enter a topic (e.g., 'Deepfake Regulation') or leave blank for random trending news..."
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  className="max-w-lg mx-auto mb-4"
-                  disabled={isGenerating}
-                />
+                <div className="space-y-2 mb-4 max-w-lg mx-auto text-left">
+                  <Label>Topic (Optional)</Label>
+                  <Input 
+                    placeholder="e.g. India DPDPA Rules, EU AI Act..." 
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    disabled={isGenerating}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank for a random trending topic.
+                  </p>
+                </div>
                 <Button
                   size="lg"
                   className="btn-gold text-lg px-8"
