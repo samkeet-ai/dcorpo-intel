@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Sun, Moon, ExternalLink, Menu, X, Archive, Home, Shield } from "lucide-react";
+import { ExternalLink, Menu, X, Archive, Home } from "lucide-react";
 import { useCountdown } from "@/hooks/useCountdown";
+import { ModeToggle } from "@/components/ModeToggle";
 
 export function Header() {
   const countdown = useCountdown();
-  const [isDark, setIsDark] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -50,7 +50,7 @@ export function Header() {
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="flex items-center gap-3 md:gap-4">
           {/* Countdown - Hidden on mobile */}
           <div className="hidden lg:flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">Next Briefing:</span>
@@ -62,6 +62,9 @@ export function Header() {
               <span className="bg-secondary px-2 py-1 rounded">{formatNumber(countdown.minutes)}m</span>
             </div>
           </div>
+
+          {/* Theme Toggle */}
+          <ModeToggle />
 
           {/* CTA Button */}
           <a
