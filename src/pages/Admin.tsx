@@ -13,16 +13,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
-// --- PASTE YOUR API KEYS HERE FOR IMMEDIATE FIX ---
-// (Later you can move these to .env file as VITE_GEMINI_API_KEY)
+// ------------------------------------------------------------------
+// 🚨 PASTE YOUR KEYS HERE. DO NOT LEAVE THESE AS "PASTE_YOUR..."
+// ------------------------------------------------------------------
 const GEMINI_API_KEY = "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";
 const TAVILY_API_KEY = "AIzaSyClEbwmRGZjp8U4zyaz9JQoydO2EqL0SMc";
+// ------------------------------------------------------------------
 
 function AdminDashboard() {
   const { user, signOut, isAdmin, logAction } = useAuth();
   const [selectedBrief, setSelectedBrief] = useState<AdminBrief | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [statusMessage, setStatusMessage] = useState(""); // Feedback for user
+  const [statusMessage, setStatusMessage] = useState(""); 
   const [activeTab, setActiveTab] = useState("newsroom");
   const [topic, setTopic] = useState("");
   const { data: drafts, isLoading: draftsLoading, refetch: refetchDrafts } = useDraftBriefs();
@@ -67,11 +69,13 @@ function AdminDashboard() {
     }
   };
 
-  // --- THE NEW "FRONTEND BRAIN" GENERATOR ---
+  // --- FRONTEND GENERATOR (BYPASSING SUPABASE EDGE FUNCTION) ---
   const handleGenerate = async () => {
     if (!isAdmin) return toast.error("Admin required");
+    
+    // Safety Check for Keys
     if (GEMINI_API_KEY.includes("PASTE") || TAVILY_API_KEY.includes("PASTE")) {
-       return toast.error("Please paste your API keys in Admin.tsx code first!");
+       return toast.error("CONFIGURATION ERROR: Please open Admin.tsx and paste your API keys on lines 18-19.");
     }
 
     setIsGenerating(true);
@@ -94,7 +98,11 @@ function AdminDashboard() {
         })
       });
 
-      if (!tavilyResponse.ok) throw new Error("Tavily Search Failed");
+      if (!tavilyResponse.ok) {
+        const err = await tavilyResponse.text();
+        throw new Error(`Tavily Search Failed: ${err}`);
+      }
+      
       const searchData = await tavilyResponse.json();
       const context = searchData.results.map((r: any) => `- ${r.title}: ${r.content}`).join("\n");
 
@@ -115,6 +123,7 @@ function AdminDashboard() {
         "category": "Legal Tech"
       }`;
 
+      // Call Google Gemini API directly
       const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,10 +132,16 @@ function AdminDashboard() {
         })
       });
 
-      if (!geminiResponse.ok) throw new Error("Gemini API Failed");
+      if (!geminiResponse.ok) {
+         const err = await geminiResponse.text();
+         throw new Error(`Gemini API Failed: ${err}`);
+      }
+
       const geminiData = await geminiResponse.json();
-      const rawText = geminiData.candidates[0].content.parts[0].text;
+      const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
       
+      if (!rawText) throw new Error("Gemini returned empty response");
+
       // Clean JSON
       const jsonText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
       const briefData = JSON.parse(jsonText);
@@ -223,11 +238,7 @@ function AdminDashboard() {
               </div>
             )}
             
-            {/* ... (Rest of your UI: Stats, Drafts List, Published List) ... */}
-            {/* The rest of the file can remain exactly as you have it in your uploaded version, 
-                just ensure the drafts/published mapping uses the handleDelete I added above. 
-            */}
-             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="glass-card p-4 text-center">
                 <FileText className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
                 <p className="text-2xl font-bold">{allBriefs?.length || 0}</p>
@@ -245,7 +256,7 @@ function AdminDashboard() {
               </div>
             </div>
 
-             {/* Drafts Section */}
+            {/* Drafts Section */}
             <section className="mt-8">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                 <h3 className="text-xl font-bold flex items-center gap-2">
@@ -292,7 +303,6 @@ function AdminDashboard() {
 
           </TabsContent>
           <TabsContent value="analytics">
-              {/* Analytics Content from your original file */}
               <div className="glass-card p-8"><h2 className="text-3xl font-bold">{subscriberCount ?? "—"}</h2><p>Subscribers</p></div>
           </TabsContent>
         </Tabs>
