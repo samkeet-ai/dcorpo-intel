@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,18 +7,15 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    console.log("Request received:", req.method);
-
-    // Authentication check
+    console.log(">>> RAG FUNCTION v4.0 STARTING");
+    const { topic } = await req.json().catch(() => ({ topic: null }));
+    
+    // Auth Check
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Missing Authorization header");
-    }
+    if (!authHeader) throw new Error("Missing Authorization header");
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -26,109 +24,47 @@ Deno.serve(async (req) => {
     );
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      console.error("Auth Error:", userError);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized", details: userError }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (userError || !user) throw new Error("Unauthorized");
 
-    console.log("User authenticated:", user.id);
+    // Search Tavily
+    const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
+    if (!TAVILY_API_KEY) throw new Error("TAVILY_API_KEY missing");
 
-    // Use Lovable AI Gateway
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY is not configured");
-      return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const searchTopic = topic && topic.trim().length > 2 ? topic : "latest legal tech news India EU USA";
+    console.log(`Searching: ${searchTopic}`);
 
-    const today = new Date().toISOString().split('T')[0];
-    const prompt = `You are a legal technology expert creating a weekly intelligence briefing. Today's date is ${today}.
-
-Generate a comprehensive legal-tech intelligence brief covering the latest developments in:
-- Data privacy laws (GDPR, DPDPA, CCPA updates)
-- AI regulations (EU AI Act, global AI governance)
-- Cybersecurity compliance
-- Corporate legal technology trends
-
-Respond with a JSON object (no markdown code blocks, just valid JSON) with this exact structure:
-{
-  "title": "A compelling headline about the most important development this week (max 80 chars)",
-  "content": "A detailed 500-word analysis in markdown format with **bold headers**, bullet points, and clear sections covering: 1) Key Development, 2) Global Impact, 3) What It Means For Businesses, 4) Action Items",
-  "category": "One of: Privacy, AI Regulation, Cybersecurity, Legal Tech"
-}`;
-
-    console.log("Calling Lovable AI Gateway...");
-    
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const searchResponse = await fetch("https://api.tavily.com/search", {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: "You are a legal technology expert. Always respond with valid JSON only, no markdown code blocks." },
-          { role: "user", content: prompt }
-        ],
-      }),
+        api_key: TAVILY_API_KEY,
+        query: searchTopic,
+        search_depth: "advanced",
+        include_answer: true,
+        max_results: 5
+      })
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI Gateway error:", aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits depleted. Please add funds to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error(`AI Gateway error: ${aiResponse.status}`);
-    }
+    const searchData = await searchResponse.json();
+    const context = searchData.results?.map((r: any) => `- ${r.title}: ${r.content}`).join("\n") || "No news found.";
 
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content;
+    // Generate with Gemini
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY missing");
 
-    if (!content) {
-      throw new Error("No content in AI response");
-    }
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro", generationConfig: { responseMimeType: "application/json" } });
 
-    console.log("AI Response received, parsing JSON...");
+    const prompt = `Role: Legal Consultant. 
+    Context: ${context}
+    Task: Write a brief about "${searchTopic}".
+    Output JSON: { "title": "Headline", "content": "Markdown article with citations", "category": "Legal Tech" }`;
 
-    let briefData;
-    try {
-      const cleanedContent = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      briefData = JSON.parse(cleanedContent);
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
-      console.error("Raw content:", content);
-      throw new Error("Failed to parse AI response as JSON");
-    }
+    const result = await model.generateContent(prompt);
+    const briefData = JSON.parse(result.response.text());
 
-    if (!briefData.title || !briefData.content) {
-      throw new Error("AI response missing required fields");
-    }
-
-    // Use service role for DB insert
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    console.log("Inserting brief into database...");
+    // Save
+    const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
     const { data, error } = await supabaseAdmin.from("legal_briefs").insert({
       title: briefData.title,
       content: briefData.content,
@@ -137,23 +73,12 @@ Respond with a JSON object (no markdown code blocks, just valid JSON) with this 
       author_id: user.id,
     }).select().single();
 
-    if (error) {
-      console.error("Database error:", error);
-      throw error;
-    }
+    if (error) throw error;
+    console.log("Brief created:", data.id);
+    return new Response(JSON.stringify({ success: true, brief: data }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    console.log("Brief created successfully:", data.id);
-    return new Response(
-      JSON.stringify({ success: true, brief: data }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Function Error:", error);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  } catch (error: any) {
+    console.error("Error:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
