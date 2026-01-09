@@ -15,8 +15,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 // --- PASTE YOUR API KEYS HERE FOR IMMEDIATE FIX ---
 // (Later you can move these to .env file as VITE_GEMINI_API_KEY)
-const GEMINI_API_KEY = "PASTE_YOUR_GEMINI_KEY_HERE";
-const TAVILY_API_KEY = "PASTE_YOUR_TAVILY_KEY_HERE";
+const GEMINI_API_KEY = "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";
+const TAVILY_API_KEY = "AIzaSyClEbwmRGZjp8U4zyaz9JQoydO2EqL0SMc";
 
 function AdminDashboard() {
   const { user, signOut, isAdmin, logAction } = useAuth();
