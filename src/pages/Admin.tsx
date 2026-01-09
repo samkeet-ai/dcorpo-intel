@@ -13,12 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
-// ------------------------------------------------------------------
-// 🚨 PASTE YOUR KEYS HERE. DO NOT LEAVE THESE AS "PASTE_YOUR..."
-// ------------------------------------------------------------------
-const GEMINI_API_KEY = "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";
-const TAVILY_API_KEY = "AIzaSyClEbwmRGZjp8U4zyaz9JQoydO2EqL0SMc";
-// ------------------------------------------------------------------
+// ==============================================================================
+// 🔑 API KEYS SECTION (PASTE YOUR KEYS HERE)
+// ==============================================================================
+const GEMINI_API_KEY = "AIzaSyClEbwmRGZjp8U4zyaz9JQoydO2EqL0SMc";
+const TAVILY_API_KEY = "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";
+// ==============================================================================
 
 function AdminDashboard() {
   const { user, signOut, isAdmin, logAction } = useAuth();
@@ -69,13 +69,13 @@ function AdminDashboard() {
     }
   };
 
-  // --- FRONTEND GENERATOR (BYPASSING SUPABASE EDGE FUNCTION) ---
+  // --- FRONTEND GENERATOR (BYPASSING SERVER) ---
   const handleGenerate = async () => {
     if (!isAdmin) return toast.error("Admin required");
     
-    // Safety Check for Keys
+    // Safety Check: Did you paste the keys?
     if (GEMINI_API_KEY.includes("PASTE") || TAVILY_API_KEY.includes("PASTE")) {
-       return toast.error("CONFIGURATION ERROR: Please open Admin.tsx and paste your API keys on lines 18-19.");
+       return toast.error("MISSING KEYS: Open Admin.tsx and paste API keys at the top of the file.");
     }
 
     setIsGenerating(true);
@@ -313,9 +313,9 @@ function AdminDashboard() {
 
 function AdminPage() {
   const { user, loading, isAdmin } = useAuth();
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" /><p className="text-muted-foreground">Verifying access...</p></div></div>;
   if (!user) return <AdminLogin />;
-  if (!isAdmin) return <div>Access Denied</div>;
+  if (!isAdmin) return <div className="min-h-screen bg-background flex items-center justify-center p-4"><div className="glass-card p-8 max-w-md w-full text-center"><h2 className="text-xl font-bold text-destructive mb-2">Access Denied</h2><p className="text-muted-foreground">You do not have admin privileges. Contact support if you believe this is an error.</p></div></div>;
   return <AdminDashboard />;
 }
 
