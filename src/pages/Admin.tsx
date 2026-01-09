@@ -13,12 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 
-// ==============================================================================
-// 🔑 API KEYS SECTION (PASTE YOUR KEYS HERE)
-// ==============================================================================
+// ------------------------------------------------------------------
+// 🚨 PASTE YOUR KEYS HERE. KEEP THE QUOTES ""
+// ------------------------------------------------------------------
 const GEMINI_API_KEY = "AIzaSyClEbwmRGZjp8U4zyaz9JQoydO2EqL0SMc";
 const TAVILY_API_KEY = "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";
-// ==============================================================================
+// ------------------------------------------------------------------
 
 function AdminDashboard() {
   const { user, signOut, isAdmin, logAction } = useAuth();
@@ -69,13 +69,13 @@ function AdminDashboard() {
     }
   };
 
-  // --- FRONTEND GENERATOR (BYPASSING SERVER) ---
+  // --- FRONTEND GENERATOR (BYPASSING SUPABASE EDGE FUNCTION) ---
   const handleGenerate = async () => {
     if (!isAdmin) return toast.error("Admin required");
     
-    // Safety Check: Did you paste the keys?
+    // Safety Check for Keys
     if (GEMINI_API_KEY.includes("PASTE") || TAVILY_API_KEY.includes("PASTE")) {
-       return toast.error("MISSING KEYS: Open Admin.tsx and paste API keys at the top of the file.");
+       return toast.error("CONFIGURATION ERROR: Please open Admin.tsx and paste your API keys on lines 19-20.");
     }
 
     setIsGenerating(true);
@@ -228,95 +228,5 @@ function AdminDashboard() {
                     disabled={isGenerating}
                   />
                 </div>
-                <Button size="lg" className="btn-gold text-lg px-8" onClick={handleGenerate} disabled={isGenerating}>
-                  {isGenerating ? (
-                    <><span className="animate-pulse mr-2">🤖</span>{statusMessage}</>
-                  ) : (
-                    <><Sparkles className="w-5 h-5 mr-2" />Generate with AI</>
-                  )}
-                </Button>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="glass-card p-4 text-center">
-                <FileText className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
-                <p className="text-2xl font-bold">{allBriefs?.length || 0}</p>
-                <p className="text-sm text-muted-foreground">Total Briefs</p>
-              </div>
-              <div className="glass-card p-4 text-center">
-                <Clock className="w-6 h-6 mx-auto text-gold mb-2" />
-                <p className="text-2xl font-bold">{draftBriefs.length}</p>
-                <p className="text-sm text-muted-foreground">Drafts</p>
-              </div>
-              <div className="glass-card p-4 text-center">
-                <CheckCircle className="w-6 h-6 mx-auto text-accent mb-2" />
-                <p className="text-2xl font-bold">{publishedBriefs.length}</p>
-                <p className="text-sm text-muted-foreground">Published</p>
-              </div>
-            </div>
-
-            {/* Drafts Section */}
-            <section className="mt-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-gold" /> Drafts Awaiting Review
-                </h3>
-                <Button variant="outline" size="sm" onClick={handleRefresh}><RefreshCw className="w-4 h-4 mr-2" /> Refresh List</Button>
-              </div>
-               {draftBriefs.length === 0 ? <div className="p-8 text-center text-muted-foreground glass-card">No drafts.</div> : (
-                <div className="grid gap-4">
-                  {draftBriefs.map((brief) => (
-                    <div key={brief.id} onClick={() => setSelectedBrief(brief)} className="glass-card hover-lift p-4 flex justify-between items-center cursor-pointer group">
-                      <div>
-                        <h4 className="font-semibold">{brief.title}</h4>
-                        <p className="text-sm text-muted-foreground">{format(new Date(brief.created_at), "MMM d, yyyy")}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => handleDelete(e, brief.id)}><Trash2 className="w-4 h-4"/></Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-               )}
-            </section>
-            
-            {/* Published Section */}
-            <section className="mt-8">
-               <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><CheckCircle className="w-5 h-5 text-accent" /> Published Briefs</h3>
-               {publishedBriefs.length === 0 ? <div className="p-8 text-center text-muted-foreground glass-card">No published briefs.</div> : (
-                <div className="grid gap-4">
-                  {publishedBriefs.map((brief) => (
-                    <div key={brief.id} onClick={() => setSelectedBrief(brief)} className="glass-card hover-lift p-4 flex justify-between items-center cursor-pointer group">
-                      <div>
-                        <h4 className="font-semibold">{brief.title}</h4>
-                         <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full">LIVE</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={(e) => handleDelete(e, brief.id)}><Trash2 className="w-4 h-4"/></Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-               )}
-            </section>
-
-          </TabsContent>
-          <TabsContent value="analytics">
-              <div className="glass-card p-8"><h2 className="text-3xl font-bold">{subscriberCount ?? "—"}</h2><p>Subscribers</p></div>
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
-  );
-}
-
-function AdminPage() {
-  const { user, loading, isAdmin } = useAuth();
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="text-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" /><p className="text-muted-foreground">Verifying access...</p></div></div>;
-  if (!user) return <AdminLogin />;
-  if (!isAdmin) return <div className="min-h-screen bg-background flex items-center justify-center p-4"><div className="glass-card p-8 max-w-md w-full text-center"><h2 className="text-xl font-bold text-destructive mb-2">Access Denied</h2><p className="text-muted-foreground">You do not have admin privileges. Contact support if you believe this is an error.</p></div></div>;
-  return <AdminDashboard />;
-}
-
-export default AdminPage;
+                {/* BUTTON WITH VISUAL MARKER */}
+                <Button
